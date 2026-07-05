@@ -17,9 +17,10 @@ AutoBaker only ever performs actions a real player could perform:
 
 It **never** grants cookies, edits your save, calls debug functions, or touches the cheat
 upgrades — so your save stays clean and `Cheated cookies taste awful` can never trigger.
-Clicking is *humanized* by default: 6–10 clicks per second with jitter, short bursts and
-rest breaks, faster "leaning in" during Click Frenzies, and a 0.4–2.5 s reaction time on
-golden cookies. A turbo mode exists if you don't care about looking human.
+Clicks are genuine MouseEvents at ~20–25 per second, well within the 50/s that the game
+itself accepts from a mouse (fast clicking isn't cheating — the game even awards the
+*Uncanny clicker* achievement for it). Turn off `turbo` in the HUD if you want a slower
+~10/s to save CPU.
 
 > The only unavoidable footprint: registering as a mod grants the **Third-party** *shadow*
 > achievement, which is cosmetic and does not affect milk or 100% completion.
@@ -48,8 +49,8 @@ reason to run two copies.
 
 | System | Behavior |
 |---|---|
-| Big cookie | Humanized clicking with bursts/rests; leans in during click buffs |
-| Golden/wrath cookies & reindeer | Clicked after a human-plausible reaction delay |
+| Big cookie | Steady fast clicking (~20–25/s; ~10/s with turbo off) |
+| Golden/wrath cookies & reindeer | Clicked within a fraction of a second of spawning |
 | Buildings | Best payback (price ÷ CpS gained), prioritizes unlocking new buildings |
 | Upgrades | Bought cheapest-first, with a "Lucky bank" reserve so Frenzy×Lucky pays out fully |
 | Grandmapocalypse | Buys research, pledges ×5, seals + revokes the Elder Covenant (all 3 elder achievements), then farms wrinklers forever |
@@ -70,7 +71,7 @@ reason to run two copies.
 - **HUD** (bottom-left, draggable, double-click the title to collapse): live achievement
   count, run mode, prestige gain, season/garden targets, and toggles for every subsystem.
 - **Console**: `AutoBaker.remaining()` lists every normal achievement still missing;
-  `AutoBaker.set('turbo', true)`, `AutoBaker.pause()`, `AutoBaker.resume()`.
+  `AutoBaker.set('turbo', false)`, `AutoBaker.pause()`, `AutoBaker.resume()`.
 
 Settings persist in `localStorage`; director state also piggybacks on the game's own save
 via the official mod API.

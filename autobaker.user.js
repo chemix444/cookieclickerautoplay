@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cookie Clicker AutoBaker
 // @namespace    autobaker
-// @version      1.0.0
+// @version      1.1.0
 // @description  Autoplays Cookie Clicker toward 100% of normal achievements using only actions a real player could perform.
 // @author       AutoBaker
 // @match        https://orteil.dashnet.org/cookieclicker/*
@@ -20,7 +20,8 @@
  *  - It NEVER grants cookies, edits the save, calls Game.Win(), or uses the
  *    debug/cheat upgrades. Your save stays clean ("Cheated cookies taste
  *    awful" can never trigger from this script).
- *  - Clicking is humanized by default: variable cadence, bursts, and rests.
+ *  - Clicks are real MouseEvents, paced within the game's own accepted
+ *    click rate (the game caps mouse clicks at 50/s).
  *
  * "100%" here means every NON-SHADOW achievement (shadow achievements do not
  * count toward milk and several of them are cheat- or luck-gated by design).
@@ -40,8 +41,7 @@
   var cfg = {
     enabled: true,
     clicker: true,
-    humanize: true,      // human-ish click cadence with rests; off = steady turbo
-    turbo: false,        // ~20 cps instead of 6-10 cps
+    turbo: true,         // ~20-25 cps; off = steadier ~10 cps (less CPU)
     goldenCookies: true,
     clickWrath: true,
     buyBuildings: true,
@@ -149,11 +149,10 @@
   }
 
   // ------------------------------------------------------------------ clicker
-  // Humanized big-cookie clicker: sessions of clicking followed by short rests,
-  // per-click jitter, and faster cadence during click-buff windows.
+  // Big-cookie clicker: steady fast clicking. The game ignores mouse clicks
+  // closer together than 20ms (50/s), so turbo's ~40ms spacing is comfortably
+  // inside what it accepts.
   var clicker = {
-    sessionEnd: 0,
-    restEnd: 0,
     schedule: function () {
       var self = this;
       setTimeout(function () { self.tick(); }, this.nextDelay());
@@ -162,31 +161,13 @@
       var G = W.Game;
       if (!cfg.enabled || !cfg.clicker || !G || !G.ready || G.OnAscend) return 500;
       if (S.runMode === 'NEVERCLICK' && G.cookiesEarned < 1e6) return 800;
-
-      var t = now();
-      if (!cfg.humanize) return cfg.turbo ? rand(35, 60) : rand(90, 130);
-
-      if (t < this.restEnd) return this.restEnd - t + rand(0, 400);
-      if (t > this.sessionEnd) {
-        // new click session; occasionally take a longer break
-        this.sessionEnd = t + rand(20000, 90000);
-        this.restEnd = t + (Math.random() < 0.15 ? rand(4000, 12000) : rand(300, 1500));
-        return this.restEnd - t;
-      }
-      var cps = cfg.turbo ? rand(16, 22) : rand(6, 10);
-      var buffed = false;
-      try {
-        buffed = !!(G.buffs && (G.buffs['Click frenzy'] || G.buffs['Cursed finger'] || G.buffs['Dragonflight']));
-      } catch (e) {}
-      if (buffed) cps = rand(11, 14); // a human leans in during click frenzies
-      return 1000 / cps * rand(0.8, 1.2);
+      return cfg.turbo ? rand(35, 60) : rand(90, 130);
     },
     tick: function () {
       var G = W.Game;
       try {
         if (cfg.enabled && cfg.clicker && G && G.ready && !G.OnAscend &&
-            !(S.runMode === 'NEVERCLICK' && G.cookiesEarned < 1e6) &&
-            now() >= this.restEnd) {
+            !(S.runMode === 'NEVERCLICK' && G.cookiesEarned < 1e6)) {
           realClick(el('bigCookie'));
         }
       } catch (e) {}
@@ -195,7 +176,7 @@
   };
 
   // ----------------------------------------------------------------- shimmers
-  // Golden cookies / reindeer: react after a human-plausible delay.
+  // Golden cookies / reindeer: click shortly after they spawn.
   var scheduledShimmers = (typeof WeakSet !== 'undefined') ? new WeakSet() : { has: function () { return false; }, add: function () {} };
 
   function shimmerTask() {
@@ -212,7 +193,7 @@
             if (!cfg.enabled || !cfg.goldenCookies) return;
             if (sh.l && sh.l.parentNode) realClick(sh.l);
           } catch (e) {}
-        }, cfg.humanize ? rand(400, 2500) : rand(50, 250));
+        }, rand(50, 250));
       })(s);
     }
   }
@@ -263,7 +244,7 @@
       if (ups.length && ups[0].getPrice() <= budget) {
         ups[0].buy(1);
         S.lastBuy = now();
-        return; // one purchase per tick keeps pacing human
+        return; // one item per tick so building payback is re-evaluated between buys
       }
     }
 
@@ -1037,7 +1018,7 @@
   }
 
   var HUD_TOGGLES = [
-    ['enabled', 'Master switch'], ['clicker', 'Auto-click cookie'], ['humanize', 'Human-like pacing'],
+    ['enabled', 'Master switch'], ['clicker', 'Auto-click cookie'],
     ['turbo', 'Turbo clicking'], ['goldenCookies', 'Golden cookies'], ['buyUpgrades', 'Buy upgrades'],
     ['buyBuildings', 'Buy buildings'], ['wrinklers', 'Wrinklers'], ['seasons', 'Season cycling'],
     ['garden', 'Garden'], ['market', 'Stock market'], ['grimoire', 'Grimoire'],
@@ -1088,7 +1069,7 @@
   var tasks = [
     { name: 'mode', every: 1000, fn: modeTask },
     { name: 'shimmers', every: 300, fn: shimmerTask },
-    { name: 'buy', every: 1500, fn: buyTask },
+    { name: 'buy', every: 500, fn: buyTask },
     { name: 'research', every: 10000, fn: researchTask },
     { name: 'wrinklers', every: 500, fn: wrinklerTask },
     { name: 'seasons', every: 60000, fn: seasonTask },
@@ -1155,14 +1136,14 @@
     } catch (e) {}
 
     S.lastResets = G.resets;
-    log('AutoBaker v1.0.0 online — good luck, little baker');
+    log('AutoBaker v1.1.0 online — good luck, little baker');
     clicker.schedule();
     mainLoop();
   }
 
   // ------------------------------------------------------------- console API
   W.AutoBaker = {
-    version: '1.0.0',
+    version: '1.1.0',
     cfg: cfg,
     state: S,
     set: function (k, v) { if (k in cfg) { cfg[k] = v; saveCfg(); } return cfg; },
