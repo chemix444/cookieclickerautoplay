@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cookie Clicker AutoBaker",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Autoplays Cookie Clicker toward 100% of normal achievements using only actions a real player could perform.",
   "content_scripts": [
     {

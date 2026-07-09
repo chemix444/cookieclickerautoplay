@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Cookie Clicker AutoBaker
 // @namespace    autobaker
-// @version      1.1.0
+// @version      1.2.0
 // @description  Autoplays Cookie Clicker toward 100% of normal achievements using only actions a real player could perform.
 // @author       AutoBaker
 // @match        https://orteil.dashnet.org/cookieclicker/*
@@ -42,6 +42,7 @@
     enabled: true,
     clicker: true,
     turbo: true,         // ~20-25 cps; off = steadier ~10 cps (less CPU)
+    timeWarp: 1,         // fast-forward the whole game simulation (1 = off, up to 100x)
     goldenCookies: true,
     clickWrath: true,
     buyBuildings: true,
@@ -103,8 +104,37 @@
 
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(S)); } catch (e) {} }
 
+  // --------------------------------------------------------------- time warp
+  // Fast-forwards the whole game client. The game's loop counts elapsed
+  // Date.now() milliseconds and runs catch-up logic frames to match, so an
+  // accelerated clock multiplies the entire simulation (CpS, buffs, wrinklers,
+  // magic, garden, lumps) through the game's own code path. The offset only
+  // ever grows — time never runs backwards, even when the multiplier changes.
+  // NOTE: this is the one feature that is NOT "legitimate gameplay" — it's a
+  // speedhack, plain and simple (it doesn't conjure cookies from nothing and
+  // doesn't set the game's cheated flag, but it is time acceleration).
+  var realDateNow = W.Date.now.bind(W.Date);
+
+  var warp = { offset: 0, lastReal: realDateNow() };
+
+  function warpMult() {
+    var m = Number(cfg.timeWarp) || 1;
+    return Math.max(1, Math.min(100, m)); // >150x would hit the game's 5s/frame catch-up clamp
+  }
+
+  function warpedNow() {
+    var r = realDateNow();
+    warp.offset += (r - warp.lastReal) * (warpMult() - 1);
+    warp.lastReal = r;
+    return Math.floor(r + warp.offset);
+  }
+
+  try { W.Date.now = warpedNow; } catch (e) {}
+
   // ------------------------------------------------------------------- utils
-  function now() { return Date.now(); }
+  // The script itself schedules on the REAL clock so its cadence (clicks,
+  // task intervals) stays constant no matter how fast the game is warped.
+  function now() { return realDateNow(); }
   function rand(a, b) { return a + Math.random() * (b - a); }
   function el(id) { return document.getElementById(id); }
   function fmt(n) { try { return W.Beautify ? W.Beautify(n) : Math.round(n); } catch (e) { return Math.round(n); } }
@@ -732,7 +762,8 @@
     if (!cfg.sugarLumps || G.OnAscend) return;
     try {
       if (!G.canLumps || !G.canLumps()) return;
-      var age = now() - G.lumpT;
+      // lumpT is stamped with the (possibly warped) game clock, so compare in it
+      var age = W.Date.now() - G.lumpT;
       if (age >= G.lumpRipeAge) G.clickLump(); // harvest ripe (never gamble on unripe)
 
       // spend: minigames first, then Farm to 9 (full plot), then round-robin to 10
@@ -1044,10 +1075,22 @@
       '<b>Mode:</b> ' + S.runMode + (G.OnAscend ? ' (ascending)' : '') + '<br>' +
       '<b>Prestige:</b> ' + fmt(G.prestige) + ' (+' + fmt(Math.max(0, gain)) + ' on ascend)<br>' +
       '<b>Season:</b> ' + (G.season || 'none') + ' &nbsp; <b>Garden:</b> ' + (S.gardenTarget || '-') +
-      '</div><div id="abToggles"></div>' +
+      '</div><div id="abSpeed" style="margin-bottom:4px"><b>Game speed:</b> ' + warpMult() + 'x &nbsp;</div>' +
+      '<div id="abToggles"></div>' +
       '<div style="margin-top:4px;border-top:1px solid #444;padding-top:3px;color:#aaa">' +
       S.log.slice(-6).map(function (l) { return l.replace(/</g, '&lt;'); }).join('<br>') + '</div>';
     hud.body.innerHTML = html;
+
+    var speedRow = hud.body.querySelector('#abSpeed');
+    [1, 2, 5, 10, 25, 50].forEach(function (m) {
+      var b = document.createElement('a');
+      b.textContent = m + 'x';
+      b.style.cssText = 'display:inline-block;margin:0 2px;padding:0 4px;cursor:pointer;border:1px solid ' +
+        (warpMult() === m ? '#e8b30e' : '#555') + ';border-radius:3px;color:' +
+        (warpMult() === m ? '#e8b30e' : '#ccc') + ';';
+      b.addEventListener('click', function () { cfg.timeWarp = m; saveCfg(); hudTask(); });
+      speedRow.appendChild(b);
+    });
 
     var tgl = hud.body.querySelector('#abToggles');
     HUD_TOGGLES.forEach(function (t) {
@@ -1136,14 +1179,14 @@
     } catch (e) {}
 
     S.lastResets = G.resets;
-    log('AutoBaker v1.1.0 online — good luck, little baker');
+    log('AutoBaker v1.2.0 online — good luck, little baker');
     clicker.schedule();
     mainLoop();
   }
 
   // ------------------------------------------------------------- console API
   W.AutoBaker = {
-    version: '1.1.0',
+    version: '1.2.0',
     cfg: cfg,
     state: S,
     set: function (k, v) { if (k in cfg) { cfg[k] = v; saveCfg(); } return cfg; },
