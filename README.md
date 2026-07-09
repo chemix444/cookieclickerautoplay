@@ -50,6 +50,7 @@ reason to run two copies.
 | System | Behavior |
 |---|---|
 | Big cookie | Steady fast clicking (~20–25/s; ~10/s with turbo off) |
+| Time warp | Optional fast-forward of the whole game simulation, 1×–100× (see below) |
 | Golden/wrath cookies & reindeer | Clicked within a fraction of a second of spawning |
 | Buildings | Best payback (price ÷ CpS gained), prioritizes unlocking new buildings |
 | Upgrades | Bought cheapest-first, with a "Lucky bank" reserve so Frenzy×Lucky pays out fully |
@@ -65,6 +66,28 @@ reason to run two copies.
 | Ascension | Ascends at +15% prestige (configurable), buys all heavenly upgrades cheapest-first, fills permanent upgrade slots, reincarnates |
 | Challenge runs | Dedicates one run to **Neverclick** (no cookie clicks until 1M) and one to **Hardcore** (no upgrades until 1B, permanent slots vacated, Starter kitchen deferred) |
 | One-shots | News ticker ×50 (*Tabloid addiction*), rename confirm (*What's in a name*), sell a grandma (*Just wrong*), stats-menu tiny cookie, fortune claiming, a single fast burst for *Uncanny clicker*, and an optional window-squash assist for *Cookie-dunker* |
+
+## Time warp (game speed)
+
+The HUD has a **Game speed** row (1× / 2× / 5× / 10× / 25× / 50×, or
+`AutoBaker.set('timeWarp', N)` up to 100). It accelerates the page's clock, and the game's
+own latency-compensation loop then runs proportionally more logic frames — so *everything*
+speeds up together: CpS, buffs, wrinklers, Grimoire magic, garden growth, sugar lumps,
+season timers.
+
+Be aware of what this is and what it costs:
+
+- **This is the one feature that is not "legitimate gameplay."** It doesn't conjure
+  cookies from nothing and doesn't set the game's cheated flag, but it is a speedhack.
+  It defaults to 1× (off). Everything else in AutoBaker works fine without it.
+- **Clock drift**: while warped, saves are stamped with the accelerated (future) clock.
+  Each hour at N× pushes your save's clock (N−1) hours ahead of reality. If you later play
+  *without* the warp, offline earnings and sugar-lump/garden timers will stall until real
+  time catches up to the save's clock. Turning the warp back on resumes normally.
+- **Keep the tab foregrounded**: browsers throttle background timers to ~1/s, which caps
+  the effective warp at about 5× regardless of the setting.
+- Golden cookies also appear and expire N× faster in real terms; the script's reaction
+  time is real-time, so at very high multipliers it will miss a larger share of them.
 
 ## Controls
 
@@ -100,6 +123,9 @@ case the code path is identical to the player action: wrinkler pops (gradual HP 
 as clicking one), confirmation prompts (clicks the actual **Confirm** button), and the
 optional Cookie-dunker assist (temporarily shrinks the panel — the same trick players do by
 resizing the window; toggle `dunkAssist` off if that feels like too much).
+
+The optional time warp (above) is excluded from these claims entirely — it's an honest
+speedhack, clearly labeled and off by default.
 
 Personal-use automation of a single-player idle game; Cookie Clicker ships an official
 modding API and this script registers through it.
